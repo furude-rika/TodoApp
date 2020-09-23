@@ -1,25 +1,161 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useState, useEffect, useMemo } from 'react';
+import { TodoList } from './components/TodoList';
+import { TodosFilter } from './components/TodosFIlter';
+
+import { FILTERS } from './constants';
 
 function App() {
+  const [todos, setTodos] = useState([]);
+  const [visibleTodos, setVisibleTodos] = useState(FILTERS.all);
+  const [todoTitle, setTodoTitle] = useState('');
+
+  useEffect(() => {
+    localStorage.setItem('todos', JSON.stringify(todos));
+  }, [todos]);
+
+  const createTodo = (title) => {
+    setTodos([
+      ...todos,
+      {
+        title,
+        id: +new Date(),
+        completed: false,
+        editing: false,
+      },
+    ]);
+  };
+
+  const filteredTodos = todos.filter((todo) => {
+    switch (visibleTodos) {
+      case FILTERS.completed:
+        return todo.completed;
+
+      case FILTERS.active:
+        return !todo.completed;
+
+      default:
+        return todo;
+    }
+  });
+
+  const changeTodoStatus = (todoId) => {
+    setTodos(todos.map((todo) => {
+      if (todo.id === todoId) {
+        return {
+          ...todo,
+          completed: !todo.completed,
+        };
+      }
+
+      return todo;
+    }));
+  };
+
+  const areAllCompleted = useMemo(
+    () => todos.every(todo => todo.completed), [todos],
+  );
+
+  const toggleAll = () => {
+    if (areAllCompleted) {
+      setTodos(todos.map(todo => ({
+        ...todo,
+        completed: false,
+      })));
+    } else {
+      setTodos(todos.map(todo => ({
+        ...todo,
+        completed: true,
+      })));
+    }
+  };
+
+  const activeTodos = useMemo(
+    () => todos.filter(todo => !todo.completed), [todos],
+  );
+
+  const deleteTodo = (todoId) => {
+    setTodos(todos.filter(todo => todo.id !== todoId));
+  };
+
+  const completedTodos = useMemo(
+    () => todos.filter(todo => todo.completed), [todos],
+  );
+
+  const clearCompleted = () => {
+    setTodos(activeTodos);
+  };
+
+  const changeTitle = (todoId, newTitle) => {
+    setTodos(todos.map((todo) => {
+      if (todo.id === todoId) {
+        return {
+          ...todo,
+          title: newTitle,
+        };
+      }
+
+      return todo;
+    }));
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+    <section className="todoapp">
+      <header className="header">
+        <h1>todos</h1>
+
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+          }}
         >
-          Learn React
-        </a>
+          <input
+            type="text"
+            className="new-todo"
+            value={todoTitle}
+            placeholder="What needs to be done?"
+            onChange={(event) => {
+              setTodoTitle(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && todoTitle.trim()) {
+                createTodo(todoTitle.trim());
+                setTodoTitle('');
+              }
+            }}
+          />
+        </form>
       </header>
-    </div>
+
+      <section className="main">
+        <input
+          type="checkbox"
+          id="toggle-all"
+          checked={todos.length > 0 && areAllCompleted}
+          className="toggle-all"
+          onChange={toggleAll}
+        />
+        <label htmlFor="toggle-all">Mark all as complete</label>
+
+        <TodoList
+          todos={filteredTodos}
+          changeStatus={changeTodoStatus}
+          deleteTodo={deleteTodo}
+          changeTitle={changeTitle}
+        />
+      </section>
+
+      {todos.length > 0 && (
+        <footer className="footer">
+          <TodosFilter
+            activeTodos={activeTodos}
+            completedTodos={completedTodos}
+            clearCompleted={clearCompleted}
+            visibleTodos={visibleTodos}
+            setVisibleTodos={setVisibleTodos}
+          />
+        </footer>
+      )}
+    </section>
   );
 }
 
